@@ -45,6 +45,11 @@
   ([^PersistentProtocolBufferMap$Def type k v & kvs]
      (PersistentProtocolBufferMap/construct type (apply array-map k v kvs))))
 
+(defn protobuf-extend
+  "Extend a protobuf with more data"
+  ([^PersistentProtocolBufferMap parent key ^PersistentProtocolBufferMap child]
+   (.extend parent key child)))
+
 (defn protobuf-schema
   "Return the schema for the given protodef."
   [& args]

@@ -751,6 +751,12 @@ public class PersistentProtocolBufferMap extends APersistentMap implements IObj 
     return assoc(key, value);
   }
 
+   public PersistentProtocolBufferMap extend(Object key, PersistentProtocolBufferMap child) {
+      DynamicMessage.Builder builder = builder();
+      builder.setExtension(key, child);
+      return new PersistentProtocolBufferMap(meta(), ext, def, builder);
+   }
+
   @Override
   public PersistentProtocolBufferMap cons(Object o) {
     if (o instanceof Map.Entry) {
