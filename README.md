@@ -67,7 +67,7 @@ repeated fields. You can also provide metadata on protobuf fields using clojure 
 use these, you must import the extension file and include it when compiling. For example:
 
 ```proto
-import "flatland/protobuf/core/extensions.proto";
+import "flatland/protobuf/extensions.proto";
 
 message Photo {
   required int32  id     = 1;
