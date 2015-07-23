@@ -52,9 +52,9 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.DescriptorProtos.FieldOptions;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
+import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
-
 
 public class PersistentProtocolBufferMap extends APersistentMap implements IObj {
   public static class Def {
@@ -145,6 +145,7 @@ public class PersistentProtocolBufferMap extends APersistentMap implements IObj 
     }
 
     static ConcurrentHashMap<DefOptions, Def> defCache = new ConcurrentHashMap<DefOptions, Def>();
+    static ExtensionRegistry registry = ExtensionRegistry.newInstance();
 
     public static Def create(Descriptors.Descriptor type, NamingStrategy strat, int sizeLimit) {
       DefOptions opts = new DefOptions(type, strat, sizeLimit);
@@ -154,6 +155,7 @@ public class PersistentProtocolBufferMap extends APersistentMap implements IObj 
         def = new Def(type, strat, sizeLimit);
         defCache.putIfAbsent(opts, def);
       }
+
       return def;
     }
 
@@ -162,15 +164,23 @@ public class PersistentProtocolBufferMap extends APersistentMap implements IObj 
       this.key_to_field = new ConcurrentHashMap<Object, Object>();
       this.namingStrategy = strat;
       this.sizeLimit = sizeLimit;
+
+      for (Descriptors.FieldDescriptor e : type.getExtensions()) {
+         if (e.getJavaType() == Descriptors.FieldDescriptor.JavaType.MESSAGE) {
+            registry.add(e, DynamicMessage.newBuilder(type).build());
+         } else {
+            registry.add(e);
+         }
+      }
     }
 
     public DynamicMessage parseFrom(byte[] bytes) throws InvalidProtocolBufferException {
-      return DynamicMessage.parseFrom(type, bytes);
+       return DynamicMessage.parseFrom(type, bytes, registry);
     }
 
     public DynamicMessage parseFrom(CodedInputStream input) throws IOException {
       input.setSizeLimit(sizeLimit);
-      return DynamicMessage.parseFrom(type, input);
+      return DynamicMessage.parseFrom(type, input, registry);
     }
 
     public DynamicMessage.Builder parseDelimitedFrom(InputStream input) throws IOException {
@@ -751,14 +761,29 @@ public class PersistentProtocolBufferMap extends APersistentMap implements IObj 
     return assoc(key, value);
   }
 
-   public PersistentProtocolBufferMap extend(PersistentProtocolBufferMap child) {
+   private Descriptors.FieldDescriptor findExtensionField(Iterable<Descriptors.FieldDescriptor> fields) {
       Descriptors.FieldDescriptor extensionField = null;
-      for (Descriptors.FieldDescriptor e : child.getMessageType().getExtensions()) {
+      for (Descriptors.FieldDescriptor e : fields) {
          if (e.getContainingType() == def.getMessageType()) {
             extensionField = e;
             break;
          }
       }
+      return extensionField;
+   }
+
+   public PersistentProtocolBufferMap getExtension(Def extensionDef) {
+      Descriptors.FieldDescriptor extensionField = findExtensionField(extensionDef.getMessageType().getExtensions());
+
+      if (extensionField == null) {
+         return null;
+      }
+
+      return new PersistentProtocolBufferMap(null, extensionDef, (DynamicMessage) message().getField(extensionField));
+   }
+
+   public PersistentProtocolBufferMap extend(PersistentProtocolBufferMap child) {
+      Descriptors.FieldDescriptor extensionField = findExtensionField(child.getMessageType().getExtensions());
 
       if (extensionField == null) {
          throw new RuntimeException("Could not find extension for "
