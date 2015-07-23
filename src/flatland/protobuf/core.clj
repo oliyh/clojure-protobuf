@@ -47,8 +47,8 @@
 
 (defn protobuf-extend
   "Extend a protobuf with more data"
-  ([^PersistentProtocolBufferMap parent key ^PersistentProtocolBufferMap child]
-   (.extend parent key child)))
+  ([^PersistentProtocolBufferMap parent ^PersistentProtocolBufferMap child]
+   (.extend parent child)))
 
 (defn protobuf-schema
   "Return the schema for the given protodef."

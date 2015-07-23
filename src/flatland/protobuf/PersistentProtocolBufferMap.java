@@ -751,9 +751,24 @@ public class PersistentProtocolBufferMap extends APersistentMap implements IObj 
     return assoc(key, value);
   }
 
-   public PersistentProtocolBufferMap extend(Object key, PersistentProtocolBufferMap child) {
+   public PersistentProtocolBufferMap extend(PersistentProtocolBufferMap child) {
+      Descriptors.FieldDescriptor extensionField = null;
+      for (Descriptors.FieldDescriptor e : child.getMessageType().getExtensions()) {
+         if (e.getContainingType() == def.getMessageType()) {
+            extensionField = e;
+            break;
+         }
+      }
+
+      if (extensionField == null) {
+         throw new RuntimeException("Could not find extension for "
+                                    + child.getMessageType().getName()
+                                    + " within "
+                                    + def.getMessageType().getName());
+      }
+
       DynamicMessage.Builder builder = builder();
-      builder.setExtension(key, child);
+      builder.setField(extensionField, child.message());
       return new PersistentProtocolBufferMap(meta(), ext, def, builder);
    }
 
