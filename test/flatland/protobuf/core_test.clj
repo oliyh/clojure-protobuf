@@ -7,7 +7,8 @@
 
 (def Foo      (protodef flatland.protobuf.test.Core$Foo))
 (def FooUnder (protodef flatland.protobuf.test.Core$Foo
-                        {:naming-strategy flatland.protobuf.PersistentProtocolBufferMap$Def/protobufNames}))
+                        {:naming-strategy flatland.protobuf.PersistentProtocolBufferMap$Def/protobufNames
+                         :enum-naming-strategy flatland.protobuf.PersistentProtocolBufferMap$Def/protobufNames}))
 (def Bar      (protodef flatland.protobuf.test.Core$Bar))
 (def Response (protodef flatland.protobuf.test.Core$Response))
 (def ErrorMsg (protodef flatland.protobuf.test.Core$ErrorMsg))

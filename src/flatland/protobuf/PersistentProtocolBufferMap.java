@@ -116,6 +116,7 @@ public class PersistentProtocolBufferMap extends APersistentMap implements IObj 
 
     public final Descriptors.Descriptor type;
     public final NamingStrategy namingStrategy;
+    public final NamingStrategy enumNamingStrategy;
     public final int sizeLimit;
 
     public static final Object NULL = new Object();
@@ -147,22 +148,23 @@ public class PersistentProtocolBufferMap extends APersistentMap implements IObj 
     static ConcurrentHashMap<DefOptions, Def> defCache = new ConcurrentHashMap<DefOptions, Def>();
     static ExtensionRegistry registry = ExtensionRegistry.newInstance();
 
-    public static Def create(Descriptors.Descriptor type, NamingStrategy strat, int sizeLimit) {
+     public static Def create(Descriptors.Descriptor type, NamingStrategy strat, NamingStrategy enumStrat, int sizeLimit) {
       DefOptions opts = new DefOptions(type, strat, sizeLimit);
 
       Def def = defCache.get(type);
       if (def == null) {
-        def = new Def(type, strat, sizeLimit);
+         def = new Def(type, strat, enumStrat, sizeLimit);
         defCache.putIfAbsent(opts, def);
       }
 
       return def;
     }
 
-    protected Def(Descriptors.Descriptor type, NamingStrategy strat, int sizeLimit) {
+     protected Def(Descriptors.Descriptor type, NamingStrategy strat, NamingStrategy enumStrat, int sizeLimit) {
       this.type = type;
       this.key_to_field = new ConcurrentHashMap<Object, Object>();
       this.namingStrategy = strat;
+      this.enumNamingStrategy = enumStrat;
       this.sizeLimit = sizeLimit;
 
       for (Descriptors.FieldDescriptor e : type.getExtensions()) {
@@ -233,7 +235,11 @@ public class PersistentProtocolBufferMap extends APersistentMap implements IObj 
     static final ConcurrentHashMap<NamingStrategy, ConcurrentHashMap<String, Object>> caches = new ConcurrentHashMap<NamingStrategy, ConcurrentHashMap<String, Object>>();
     static final Object nullv = new Object();
 
-    public Object intern(String name) {
+     public Object intern(String name) {
+        return intern(name, this.namingStrategy);
+     }
+
+     private Object intern(String name, NamingStrategy namingStrategy) {
       ConcurrentHashMap<String, Object> nameCache = caches.get(namingStrategy);
       if (nameCache == null) {
         nameCache = new ConcurrentHashMap<String, Object>();
@@ -261,7 +267,7 @@ public class PersistentProtocolBufferMap extends APersistentMap implements IObj 
     }
 
     public Object clojureEnumValue(Descriptors.EnumValueDescriptor enum_value) {
-      return intern(enum_value.getName());
+       return intern(enum_value.getName(), this.enumNamingStrategy);
     }
 
     protected Object mapFieldBy(Descriptors.FieldDescriptor field) {
@@ -501,6 +507,7 @@ public class PersistentProtocolBufferMap extends APersistentMap implements IObj 
         case MESSAGE:
           Def fieldDef = PersistentProtocolBufferMap.Def.create(field.getMessageType(),
                                                                 this.def.namingStrategy,
+                                                                this.def.enumNamingStrategy,
                                                                 this.def.sizeLimit);
           DynamicMessage message = (DynamicMessage)value;
 
@@ -547,7 +554,7 @@ public class PersistentProtocolBufferMap extends APersistentMap implements IObj 
       case DOUBLE:
         return ((Number)value).doubleValue();
       case ENUM:
-        String name = def.namingStrategy.protoName(value);
+        String name = def.enumNamingStrategy.protoName(value);
         Descriptors.EnumDescriptor enum_type = field.getEnumType();
         Descriptors.EnumValueDescriptor enum_value = enum_type.findValueByName(name);
         if (enum_value == null) {
@@ -562,6 +569,7 @@ public class PersistentProtocolBufferMap extends APersistentMap implements IObj 
         } else {
           Def fieldDef = PersistentProtocolBufferMap.Def.create(field.getMessageType(),
                                                                 this.def.namingStrategy,
+                                                                this.def.enumNamingStrategy,
                                                                 this.def.sizeLimit);
           protobuf = PersistentProtocolBufferMap.construct(fieldDef, value);
         }
